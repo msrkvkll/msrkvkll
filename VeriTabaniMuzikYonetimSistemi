@@ -1,0 +1,211 @@
+-- Müzik Yönetim Sistemi Veritabanı
+
+CREATE DATABASE MuzikYonetimSistDENEME5;
+USE MuzikYonetimSistDENEME5;
+
+-- Kullanıcılar Tablosu
+CREATE TABLE Kullanicilar (
+    KullaniciID INT PRIMARY KEY AUTO_INCREMENT,
+    KullaniciAdi VARCHAR(50),
+    email VARCHAR(75),
+    sifre VARCHAR(50),
+    KullaniciYasi INT
+);
+
+-- Sanatçılar Tablosu
+CREATE TABLE Sanatcilar (
+    SanatciID INT PRIMARY KEY AUTO_INCREMENT,
+    SanatciAdi VARCHAR(50),
+    SanatciUlkesi VARCHAR(50)
+);
+
+-- Albümler Tablosu
+CREATE TABLE Albumler (
+    AlbumID INT PRIMARY KEY AUTO_INCREMENT,
+    AlbumAdi VARCHAR(50),
+    SanatciID INT,
+    CıkısTarihi DATE,
+    FOREIGN KEY (SanatciID) REFERENCES Sanatcilar(SanatciID)
+);
+
+-- Şarkılar Tablosu
+CREATE TABLE Sarkilar (
+    SarkiID INT AUTO_INCREMENT PRIMARY KEY,
+    SarkiAdi VARCHAR(75),
+    SanatciID INT,
+    SarkiTuru VARCHAR(50),
+    SarkiSuresi DOUBLE,
+    AlbumID INT,
+    CikisTarihi DATE,
+    FOREIGN KEY (SanatciID) REFERENCES Sanatcilar(SanatciID),
+    FOREIGN KEY (AlbumID) REFERENCES Albumler(AlbumID)
+);
+
+-- Çalma Listeleri Tablosu
+CREATE TABLE CalmaListeleri (
+    CalmaListID INT AUTO_INCREMENT PRIMARY KEY,
+    CalmaListAdi VARCHAR(75),
+    KullaniciID INT,
+    FOREIGN KEY (KullaniciID) REFERENCES Kullanicilar(KullaniciID)
+);
+
+-- Çalma Listesi Şarkıları Tablosu
+CREATE TABLE CalmaListSarkilari (
+    CalmaListID INT,
+    SarkiID INT,
+    FOREIGN KEY (CalmaListID) REFERENCES CalmaListeleri(CalmaListID),
+    FOREIGN KEY (SarkiID) REFERENCES Sarkilar(SarkiID)
+);
+
+-- Kullanıcı Log Tablosu
+CREATE TABLE KullaniciLog (
+    logID INT AUTO_INCREMENT PRIMARY KEY,
+    KullaniciID INT,
+    KullaniciAdi VARCHAR(50),
+    email VARCHAR(75),
+    logTarihi DATETIME,
+    islem VARCHAR(10)
+);
+
+-- Kullanıcı Ekleme Trigger'ı
+DELIMITER $$
+CREATE TRIGGER KullaniciEklendi
+AFTER INSERT ON Kullanicilar
+FOR EACH ROW
+BEGIN
+    INSERT INTO KullaniciLog (KullaniciID, KullaniciAdi, email, logTarihi, islem)
+    VALUES (NEW.KullaniciID, NEW.KullaniciAdi, NEW.email, NOW(), 'insert');
+END$$
+DELIMITER ;
+
+-- Kullanıcı Silme Trigger'ı
+DELIMITER $$
+CREATE TRIGGER KullaniciSilindi
+AFTER DELETE ON Kullanicilar
+FOR EACH ROW
+BEGIN
+    INSERT INTO KullaniciLog (KullaniciID, KullaniciAdi, email, logTarihi, islem)
+    VALUES (OLD.KullaniciID, OLD.KullaniciAdi, OLD.email, NOW(), 'delete');
+END$$
+DELIMITER ;
+
+-- Veriler Ekleniyor
+INSERT INTO Kullanicilar (KullaniciAdi, email, sifre, KullaniciYasi) VALUES
+('ÖznurS', 'silayozn@gmail.com', '06250625', 21),
+('MısraK', 'msrvkvkl@gmail.com', '3164', '21'),
+('SenaS', 'sss@gmail.com', '14531453', 25),
+('MirayK', 'mrykvkl@gmail.com', '123456', 18);
+
+INSERT INTO Sanatcilar (SanatciAdi, SanatciUlkesi) VALUES 
+('Çağan Şengül', 'Türkiye'),
+('Cem Adrian', 'Türkiye'),
+('Sezen Aksu', 'Türkiye'),
+('Adele', 'İngiltere'),
+('maNga', 'Türkiye');
+
+INSERT INTO Albumler (AlbumAdi, SanatciID, CıkısTarihi) VALUES 
+('Yangın', 1, '2022-10-07'),
+('Mücevher', 2, '2024-11-01'),
+('Firuze', 3, '1982-10-02'),
+('25', 4, '2015-11-20'),
+('Şehr-i Hüzün', 5, '2009-05-14');
+
+INSERT INTO Sarkilar (SarkiAdi, SanatciID, SarkiTuru, SarkiSuresi, AlbumID, CikisTarihi) VALUES 
+('Çok Yazık', 1, 'Pop', 3.56, 1, '2023-10-07'),
+('Kül', 2, 'Pop', 3.40, 2, '2023-10-25'),
+('Firuze', 3, 'Pop', 4.15, 3, '1982-07-02'),
+('Hello', 4, 'Pop', 6.07, 4, '2015-10-23'),
+('Cevapsız Sorular', 5, 'Rock', 5.24, 5, '2013-06-24');
+
+INSERT INTO CalmaListeleri (CalmaListAdi, KullaniciID) VALUES
+('ÖznurunPlaylisti', 1),
+('MısranınPlaylisti', 2),
+('KlasikMüzikler', 3),
+('Favoriler', 4);
+
+INSERT INTO CalmaListSarkilari(CalmaListID,SarkiID) VALUES
+(1,2),
+(2,3),
+(4,4),
+(3,5),
+(2,5);
+-- Görünüm Oluşturma
+CREATE VIEW SarkilarOzet AS 
+SELECT 
+    s.SarkiID, 
+    s.SarkiAdi, 
+    a.AlbumAdi, 
+    sa.SanatciAdi, 
+    s.SarkiTuru, 
+    s.SarkiSuresi, 
+    s.CikisTarihi
+FROM 
+    Sarkilar s
+JOIN Albumler a ON s.AlbumID = a.AlbumID
+JOIN Sanatcilar sa ON s.SanatciID = sa.SanatciID;
+
+-- 5'ten uzun süreli şarkıları listeleme
+SELECT * FROM SarkilarOzet WHERE SarkiSuresi > 5;
+
+-- Kullanıcı Çalma Listesi Şarkıları için Prosedür
+DELIMITER $$
+CREATE PROCEDURE GetKullaniciCalmaListeleri(IN KullaniciID INT)
+BEGIN
+    SELECT 
+        k.KullaniciAdi AS KullaniciAdı,
+        cl.CalmaListAdi AS CalmaListesi,
+        s.SarkiAdi AS SarkiAdı,
+        s.SarkiTuru AS SarkiTürü,
+        s.SarkiSuresi AS SarkiSüresi
+    FROM 
+        Kullanicilar k
+    JOIN 
+        CalmaListeleri cl ON k.KullaniciID = cl.KullaniciID
+    JOIN 
+        CalmaListSarkilari cls ON cl.CalmaListID = cls.CalmaListID
+    JOIN 
+        Sarkilar s ON cls.SarkiID = s.SarkiID
+    WHERE 
+        k.KullaniciID = KullaniciID;
+END$$
+DELIMITER ;
+
+START TRANSACTION;
+INSERT INTO Kullanicilar (KullaniciAdi, email, sifre, KullaniciYasi) VALUES ('Deneme', 'deneme@gmail.com', '12345', 30);
+DELETE FROM Kullanicilar WHERE KullaniciAdi = 'Deneme';
+COMMIT;
+
+
+-- Prosedürü Çağırma
+CALL GetKullaniciCalmaListeleri(1);
+
+-- Kullanıcı ve Log Tablosu Testleri
+-- Kullanıcı Ekleme
+INSERT INTO Kullanicilar (KullaniciAdi, email, sifre, KullaniciYasi) VALUES ('SelimB', 'SelimB@gmail.com', '123456', 38);
+SELECT * FROM KullaniciLog;
+
+-- Kullanicilar tablosunu kontrol edelim SelimB kullanıcısı eklendi mi
+SELECT * FROM Kullanicilar;
+
+-- KullaniciYasi güncelleme
+UPDATE Kullanicilar SET KullaniciYasi=KullaniciYasi+1 WHERE KullaniciAdi='ÖznurS';
+
+-- Kullanicilar tablosunu kontrol edelim ÖznurS yaşı güncellenmiş mi
+SELECT * FROM Kullanicilar;
+
+-- Kullanıcı Silme İşlemi
+DELETE FROM Kullanicilar WHERE KullaniciAdi = 'SelimB';
+
+-- Kullanicilar tablosunu kontrol edelim SelimB kullanicisi silinmiş mi
+SELECT * FROM Kullanicilar;
+
+-- Kullanıcı Log Tablosunu Yeniden Kontrol Edelim
+SELECT * FROM KullaniciLog;
+
+-- İndeks Oluşturma
+CREATE INDEX idx_KullaniciAdi_Yasi ON Kullanicilar (KullaniciAdi, KullaniciYasi);
+
+-- İndeks Testi
+SELECT * FROM Kullanicilar WHERE KullaniciAdi = 'MısraK' AND KullaniciYasi>20 ;
+
+SELECT * FROM Kullanicilar WHERE KullaniciAdi = 'ÖznurS' and KullaniciYasi>20 or sifre='06250625';
