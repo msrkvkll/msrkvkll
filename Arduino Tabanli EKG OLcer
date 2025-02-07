@@ -1,0 +1,49 @@
+#include <LiquidCrystal.h>
+
+// LCD bağlantı pinleri
+LiquidCrystal lcd(7, 6, 5, 4, 3, 2);
+
+// Sensör bağlantı pinleri
+const int loPlusPin = 10; // LO+ pini
+const int loMinusPin = 11; // LO- pini
+const int potPin = A0;     // Potansiyometre bağlı pin
+
+void setup() {
+  // Seri iletişim başlatma
+  Serial.begin(9600);
+
+  // Pin modlarını ayarla
+  pinMode(loPlusPin, INPUT);
+  pinMode(loMinusPin, INPUT);
+
+  // LCD ekran başlatma
+  lcd.begin(16, 2); // 16 sütun, 2 satır
+  lcd.setCursor(0, 0);
+  lcd.print("EKG Durumu:");
+}
+
+void loop() {
+  // LO+ ve LO- pinlerinin durumlarını kontrol et
+  if (digitalRead(loPlusPin) == 1 || digitalRead(loMinusPin) == 1) {
+    // LO+ veya LO- aktif olduğunda
+    Serial.println("!");
+    lcd.setCursor(0, 1); // İkinci satırın başlangıcı
+    lcd.print("Durum: !");
+    lcd.print("          "); // Satırı temizlemek için boşluk
+  } else {
+    // Potansiyometreden okunan değeri ölçeklendir
+    int potValue = analogRead(potPin);
+    int scaledValue = map(potValue, 0, 1023, 60, 100); // 0-1023'ü 60-100'e ölçeklendir
+
+    // Seri monitöre yazdır
+    Serial.println(scaledValue);
+
+    // LCD ekrana yazdır
+    lcd.setCursor(0, 1); // İkinci satırın başlangıcı
+    lcd.print("Deger: ");
+    lcd.print(scaledValue);
+    lcd.print("     "); // Satırı temizlemek için boşluk
+  }
+
+  delay(200); // 200 ms bekleme
+}
